@@ -1,5 +1,5 @@
 resource "aws_vpc" "my_vpc" {
-  cidr_block = "172.16.0.0/16"
+  cidr_block = "172.16.0.0/24"
 
   tags = {
     Name = "Bloomy"
@@ -9,7 +9,7 @@ resource "aws_vpc" "my_vpc" {
 resource "aws_subnet" "my_subnet" {
   vpc_id            = aws_vpc.my_vpc.id
   cidr_block        = "172.16.10.0/24"
-  availability_zone = "us-west-2a"
+  availability_zone = "us-east-1a"
 
   tags = {
     Name = "Bloomy"
@@ -26,7 +26,7 @@ resource "aws_network_interface" "foo" {
 }
 
 resource "aws_instance" "foo" {
-  ami           = "ami-005e54dee72cc1d00" # us-west-2
+  ami           = "ami-005e54dee72cc1d00" # us-east-1
   instance_type = "t2.micro"
 
   network_interface {
