@@ -1,40 +1,70 @@
-resource "aws_vpc" "my_vpc" {
-  cidr_block = "172.16.0.0/24"
+provider "aws" {
+  region = "us-east-1"
+}
 
+resource "aws_vpc" "demotf_vpc" {
+  cidr_block = "10.0.0.0/16"
   tags = {
-    Name = "Bloomy"
+    Name = "productiontf-vpc"
   }
 }
 
-resource "aws_subnet" "my_subnet" {
-  vpc_id            = aws_vpc.my_vpc.id
-  cidr_block        = "172.16.10.0/24"
-  availability_zone = "us-east-1a"
+resource "aws_internet_gateway" "demotf_igw" {
+  vpc_id = aws_vpc.demotf_vpc.id
+}
 
-  tags = {
-    Name = "Bloomy"
+resource "aws_subnet" "demotf_subnet" {
+  cidr_block = "10.0.1.0/24"
+  vpc_id     = aws_vpc.demotf_vpc.id
+}
+
+resource "aws_route_table" "demotf_route_table" {
+  vpc_id = aws_vpc.demotf_vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.demotf_igw.id
   }
 }
 
-resource "aws_network_interface" "foo" {
-  subnet_id   = aws_subnet.my_subnet.id
-  private_ips = ["172.16.10.100"]
-
-  tags = {
-    Name = "primary_network_interface"
-  }
+resource "aws_route_table_association" "demotf_route_table_association" {
+  subnet_id      = aws_subnet.demotf_subnet.id
+  route_table_id = aws_route_table.demotf_route_table.id
 }
 
-resource "aws_instance" "foo" {
-  ami           = "ami-0a1179631ec8933d7" # us-east-1
+resource "aws_security_group" "demotf_security_group" {
+  name_prefix = "demo_sg_"
+  vpc_id      = aws_vpc.demotf_vpc.id
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+variable "instance_keypair" {
+  description = "AWS EC2 key pair for ssh access"
+  type = string
+  default ="demo-kp"
+  sensitive = true
+}
+
+resource "aws_instance" "demo_instance" {
+  ami           = "ami-06e46074ae430fba6"
   instance_type = "t2.micro"
+  subnet_id     = aws_subnet.demotf_subnet.id
+  key_name = var.instance_keypair
+  vpc_security_group_ids = [aws_security_group.demotf_security_group.id]
+  associate_public_ip_address = true
 
-  network_interface {
-    network_interface_id = aws_network_interface.foo.id
-    device_index         = 0
-  }
-
-  credit_specification {
-    cpu_credits = "unlimited"
+  tags = {
+    Name = "productiontf-instance"
   }
 }
